@@ -1,0 +1,50 @@
+name: Android Debug APK
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Enable pnpm
+        run: corepack enable
+
+      - name: Install deps
+        run: pnpm i
+
+      - name: Build Next export (apps/web/out)
+        run: pnpm --filter web build
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Create Android project (Capacitor)
+        run: |
+          cd apps/web
+          pnpm exec cap add android || true
+          pnpm exec cap sync android
+
+      - name: Build debug APK
+        run: |
+          cd apps/web/android
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug
+          path: apps/web/android/app/build/outputs/apk/debug/app-debug.apk
